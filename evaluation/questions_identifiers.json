@@ -1,0 +1,26 @@
+{
+  "_comment": [
+    "A second, deliberately narrow question set: queries built around rare",
+    "literal identifiers (HTTPException, jsonable_encoder, APIRouter).",
+    "",
+    "This set exists to test a specific hypothesis rather than to report a",
+    "headline number. The main question set is dominated by paraphrased,",
+    "natural-language questions -- which is vector search's home turf -- so it",
+    "cannot show whether keyword search contributes anything. These eight",
+    "queries are the case where BM25 should earn its place.",
+    "",
+    "Naming the query class your evaluation under-samples, and then building a",
+    "set that covers it, is a more useful habit than adding more questions of",
+    "the kind you already have."
+  ],
+  "questions": [
+    { "question": "What is HTTPException?", "expected_docs": ["tutorial/handling-errors.md"] },
+    { "question": "What does jsonable_encoder do?", "expected_docs": ["tutorial/encoder.md"] },
+    { "question": "What is BackgroundTasks?", "expected_docs": ["tutorial/background-tasks.md"] },
+    { "question": "How do I use Depends?", "expected_docs": ["tutorial/dependencies/index.md"] },
+    { "question": "What is OAuth2PasswordRequestForm?", "expected_docs": ["tutorial/security/simple-oauth2.md"] },
+    { "question": "What does response_model_exclude_unset do?", "expected_docs": ["tutorial/response-model.md"] },
+    { "question": "How do I use UploadFile?", "expected_docs": ["tutorial/request-files.md"] },
+    { "question": "What is APIRouter?", "expected_docs": ["tutorial/bigger-applications.md"] }
+  ]
+}

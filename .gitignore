@@ -1,0 +1,16 @@
+# Downloaded corpus and generated index. Both are rebuilt by:
+#   python -m app.fetch_docs && python -m app.index
+# Committing them would put 18 MB of someone else's documentation in your
+# repo history, and a vector index that is stale the moment the docs change.
+data/
+
+# Secrets
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+*.egg-info/
