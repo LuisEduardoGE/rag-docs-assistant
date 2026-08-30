@@ -20,10 +20,15 @@ CSS = r"""
     --rule-soft:  #E2E7EA;
     --shadow:     0 1px 1px rgba(20,28,51,.05), 0 10px 28px -18px rgba(20,28,51,.45);
 
-    --display: "Sitka Banner", "Sitka Display", Constantia, Georgia, Cambria, serif;
-    --heading: "Sitka Heading", "Sitka Display", Constantia, Georgia, Cambria, serif;
-    --body:    "Sitka Text", Charter, Georgia, Constantia, Cambria, serif;
-    --mono:    Consolas, "Cascadia Mono", "SF Mono", Menlo, monospace;
+    /* Round by construction. Century Gothic is a geometric sans built on near
+       perfect circles; Candara is a humanist sans with soft, open, rounded
+       forms that stays comfortable at reading sizes where Century Gothic
+       would not. Cascadia Mono is the friendliest fixed-width face on
+       Windows - rounder terminals and a larger x-height than Consolas. */
+    --display: "Century Gothic", "Segoe UI Variable Display", Candara, "Trebuchet MS", sans-serif;
+    --heading: "Century Gothic", "Segoe UI Variable Display", Candara, "Trebuchet MS", sans-serif;
+    --body:    Candara, "Segoe UI Variable Text", "Segoe UI", Corbel, sans-serif;
+    --mono:    "Cascadia Mono", Consolas, "SF Mono", Menlo, monospace;
   }
 
   @media (prefers-color-scheme: dark) {
@@ -47,13 +52,13 @@ CSS = r"""
 
   body {
     background: var(--paper); color: var(--ink); font-family: var(--body);
-    font-size: 19px; line-height: 1.75; margin: 0;
+    font-size: 20px; line-height: 1.72; margin: 0;
     -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
   }
 
   .wrap { max-width: 1220px; margin: 0 auto; padding: 0 clamp(1rem, 3.5vw, 2.5rem) 5rem; }
 
-  h1, h2, h3, h4 { font-weight: 600; text-wrap: balance; margin: 0; }
+  h1, h2, h3, h4 { font-weight: 700; text-wrap: balance; margin: 0; letter-spacing: -.005em; }
   h1 { font-family: var(--display); }
   h2, h3, h4 { font-family: var(--heading); }
   p { margin: 0; }
@@ -104,7 +109,7 @@ CSS = r"""
     display: block; width: 100%; text-align: left;
     font-family: var(--mono); font-size: .72rem; letter-spacing: .12em; text-transform: uppercase;
     background: var(--card); border: 1px solid var(--rule); color: var(--ink);
-    padding: .7rem 1rem; border-radius: 8px; cursor: pointer;
+    padding: .75rem 1.1rem; border-radius: 12px; cursor: pointer;
   }
   @media (min-width: 960px) { .toc-toggle { display: none; } }
 
@@ -118,7 +123,7 @@ CSS = r"""
   .toc-link {
     display: grid; grid-template-columns: 1.35rem 1fr; gap: .55rem; align-items: start;
     width: 100%; text-align: left; background: none; border: 0;
-    padding: .42rem .5rem .42rem .35rem; border-radius: 6px; cursor: pointer;
+    padding: .46rem .6rem .46rem .5rem; border-radius: 10px; cursor: pointer;
     font-family: var(--body); font-size: .92rem; line-height: 1.38; color: var(--ink-soft);
   }
   .toc-link:hover { background: var(--card); color: var(--ink); }
@@ -150,7 +155,7 @@ CSS = r"""
 
   /* code */
   .code-block {
-    background: var(--card); border: 1px solid var(--rule); border-radius: 10px;
+    background: var(--card); border: 1px solid var(--rule); border-radius: 16px;
     overflow: hidden; box-shadow: var(--shadow); max-width: 82ch;
   }
   .code-block .bar-label {
@@ -169,10 +174,28 @@ CSS = r"""
   .code-block pre .n { color: var(--blue); }
   .code-block pre .soft { color: var(--blue); font-style: italic; }
 
+  /* figures */
+  .fig {
+    margin: 0; max-width: 82ch; background: var(--card);
+    border: 1px solid var(--rule); border-radius: 16px;
+    padding: 1.4rem 1.5rem 1.1rem; box-shadow: var(--shadow); overflow-x: auto;
+  }
+  .fig svg { display: block; width: 100%; max-width: 100%; height: auto; min-width: 460px; }
+  .fig figcaption {
+    font-size: .92rem; line-height: 1.55; color: var(--ink-soft);
+    margin-top: 1rem; padding-top: .85rem; border-top: 1px solid var(--rule-soft); max-width: 62ch;
+  }
+  .fig figcaption b { color: var(--ink); font-weight: 700; }
+  .d-title { font-family: var(--mono); font-size: 11px; letter-spacing: .13em; }
+  .d-box   { font-family: var(--body); font-size: 14px; font-weight: 700; fill: var(--ink); }
+  .d-sub   { font-family: var(--body); font-size: 12.5px; fill: var(--ink-soft); }
+  .d-edge  { font-family: var(--mono); font-size: 10.5px; letter-spacing: .06em; fill: var(--ink-soft); }
+  .d-mono  { font-family: var(--mono); font-size: 11.5px; fill: var(--ink); }
+
   /* file tree */
   .tree {
-    background: var(--card); border: 1px solid var(--rule); border-radius: 10px;
-    padding: 1.1rem 1.3rem; max-width: 64ch; font-family: var(--mono); font-size: .78rem;
+    background: var(--card); border: 1px solid var(--rule); border-radius: 16px;
+    padding: 1.2rem 1.4rem; max-width: 64ch; font-family: var(--mono); font-size: .78rem;
     line-height: 1.85;
   }
   .tree .t-cap { font-family: var(--body); font-size: .92rem; color: var(--ink-soft); margin-bottom: .7rem; line-height: 1.5; }
@@ -187,7 +210,7 @@ CSS = r"""
   .t-marker { color: var(--rose); margin-left: .8rem; font-size: .72rem; }
 
   /* callouts */
-  .aside { border-radius: 10px; padding: 1.25rem 1.5rem; display: grid; gap: .6rem; max-width: 64ch; font-size: .98rem; line-height: 1.68; }
+  .aside { border-radius: 18px; padding: 1.35rem 1.6rem; display: grid; gap: .6rem; max-width: 64ch; font-size: .98rem; line-height: 1.68; }
   .aside.note { background: var(--blue-wash); }
   .aside.gotcha { background: var(--rose-wash); }
   .aside.task { background: var(--green-wash); }
@@ -207,6 +230,26 @@ CSS = r"""
   ul, ol.steps { margin: 0; padding-left: 1.35rem; display: grid; gap: .6rem; }
   li { padding-left: .25rem; }
 
+  /* question and answer */
+  .qa-wrap { max-width: 72ch; }
+  details.qa {
+    background: var(--card); border: 1px solid var(--rule);
+    border-radius: 14px; margin-bottom: .65rem; overflow: hidden;
+  }
+  details.qa summary {
+    padding: 1rem 1.25rem; cursor: pointer; font-weight: 700;
+    font-family: var(--heading); font-size: 1.04rem; line-height: 1.35; list-style: none;
+  }
+  details.qa summary::marker { content: ""; }
+  details.qa summary::-webkit-details-marker { display: none; }
+  details.qa summary::before { content: "B  "; color: var(--rose); font-family: var(--mono); }
+  details.qa[open] summary::before { content: "2  "; }
+  details.qa .body {
+    padding: 0 1.25rem 1.25rem; font-size: .97rem; color: var(--ink-soft);
+    display: grid; gap: .75rem; line-height: 1.68;
+  }
+  details.qa .body strong { color: var(--ink); }
+
   /* chapter footer */
   .chapter-foot {
     max-width: 82ch; margin-top: 3rem; padding-top: 1.4rem; border-top: 1px solid var(--rule);
@@ -214,7 +257,7 @@ CSS = r"""
   }
   .btn {
     font-family: var(--body); font-size: .95rem; font-weight: 600;
-    padding: .62rem 1.15rem; border-radius: 8px; cursor: pointer;
+    padding: .66rem 1.3rem; border-radius: 12px; cursor: pointer;
     border: 1px solid var(--rule); background: var(--card); color: var(--ink);
     display: inline-flex; align-items: center; gap: .5rem;
   }
@@ -225,7 +268,7 @@ CSS = r"""
   .chapter-foot .spacer { flex: 1; }
   .btn[disabled] { opacity: .4; cursor: not-allowed; }
 
-  #allDone { max-width: 64ch; margin-top: 2rem; padding: 1.4rem 1.6rem; background: var(--green-wash); border-radius: 10px; display: grid; gap: .5rem; }
+  #allDone { max-width: 64ch; margin-top: 2rem; padding: 1.5rem 1.7rem; background: var(--green-wash); border-radius: 18px; display: grid; gap: .5rem; }
   #allDone .label { color: var(--green); }
   #allDone[hidden] { display: none; }
 

@@ -117,11 +117,61 @@ def code_file(rel: str, note: str = "") -> str:
     )
 
 
+def code_symbol(rel: str, name: str, note: str = "") -> str:
+    """Show one function or class from a real file, extracted with ast.
+
+    Used where a file is built up across several chapters. Extracting by name
+    rather than by line number means the guide keeps working when the file
+    moves around, and the fidelity checker still compares against source.
+    """
+    import ast
+
+    source = read(rel)
+    tree_ = ast.parse(source)
+    lines = source.splitlines()
+
+    def find(nodes):
+        for node in nodes:
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                if node.name == name:
+                    return node
+                found = find(node.body)
+                if found is not None:
+                    return found
+        return None
+
+    node = find(tree_.body)
+    if node is None:
+        raise SystemExit(f"{name!r} not found in {rel}")
+
+    start = min([node.lineno] + [d.lineno for d in node.decorator_list]) - 1
+    segment = "\n".join(lines[start:node.end_lineno])
+    # Strip the common indent so a method reads as a standalone block.
+    indent = len(segment) - len(segment.lstrip(" "))
+    if indent:
+        segment = "\n".join(
+            line[indent:] if line.startswith(" " * indent) else line
+            for line in segment.splitlines()
+        )
+
+    body = highlight_python(segment)
+    right = f'<p class="label">{note}</p>' if note else ""
+    return (
+        '<div class="code-block">'
+        f'<div class="bar-label"><p class="label filename">{esc(rel)}</p>{right}</div>'
+        f"<pre>{body}</pre></div>"
+    )
+
+
 def code_snippet(label: str, body: str, right: str = "") -> str:
+    # The label is author-written HTML (it carries entities like &middot;),
+    # so it is NOT escaped here -- escaping it renders "&middot;" literally.
+    # Only `body` is caller-supplied content that needs escaping, and callers
+    # do that themselves so they can pass highlighted markup through.
     right_html = f'<p class="label">{right}</p>' if right else ""
     return (
         '<div class="code-block">'
-        f'<div class="bar-label"><p class="label">{esc(label)}</p>{right_html}</div>'
+        f'<div class="bar-label"><p class="label">{label}</p>{right_html}</div>'
         f"<pre>{body}</pre></div>"
     )
 
