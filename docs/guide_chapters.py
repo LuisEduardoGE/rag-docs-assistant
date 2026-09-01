@@ -48,9 +48,24 @@ def commit(message: str, extra: str = "") -> str:
     )
 
 
-def _chapter(cid, part, eyebrow, title, deck, blocks, adds=()):
+WORDS = ("zero one two three four five six seven eight nine ten eleven twelve "
+         "thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty "
+         "twenty-one twenty-two twenty-three twenty-four twenty-five").split()
+
+
+def _chapter(key, part, title, deck, blocks, adds=(), file=None):
+    """One chapter.
+
+    `file` names the single file this step creates, if any. Exactly one step
+    per file is the rule: a file is never spread across two chapters, and a
+    chapter never quietly creates two files.
+
+    `key` is how other chapters refer to this one. Numbers are assigned by
+    position at build time, so inserting, merging or splitting a chapter can
+    never leave a stale "see chapter 14" behind.
+    """
     ch = {
-        "id": cid, "part": part, "eyebrow": eyebrow,
+        "key": key, "part": part, "file": file,
         "title": title, "deck": deck, "body": "\n".join(blocks),
     }
     for path in adds:
@@ -58,12 +73,51 @@ def _chapter(cid, part, eyebrow, title, deck, blocks, adds=()):
     return ch
 
 
+def _finalise(chapters: list[dict]) -> list[dict]:
+    """Assign ids and numbers by position, then resolve @key@ references."""
+    numbers = {}
+    for i, ch in enumerate(chapters):
+        ch["id"] = f"ch{i}"
+        ch["eyebrow"] = "Preface" if i == 0 else f"Chapter {WORDS[i]}"
+        numbers[ch["key"]] = i
+
+    for ch in chapters:
+        for key, n in numbers.items():
+            ch["body"] = ch["body"].replace(f"@{key}@", f"chapter {n}")
+            ch["deck"] = ch["deck"].replace(f"@{key}@", f"chapter {n}")
+
+    # A leftover token is a typo in a reference. Fail loudly rather than
+    # shipping a literal "@foo@" into the page.
+    import re
+
+    for ch in chapters:
+        stray = sorted(set(re.findall(r"@[a-z_]+@", ch["body"] + ch["deck"])))
+        if stray:
+            raise SystemExit(f"unresolved reference(s) in {ch['key']!r}: {stray}")
+
+    # One step per file, enforced. A file claimed by two chapters means it is
+    # being written across two steps; the rule only means anything if it is
+    # checked.
+    seen: dict[str, str] = {}
+    for ch in chapters:
+        made = ch.get("file")
+        if not made:
+            continue
+        if made in seen:
+            raise SystemExit(
+                f"{made} is created by two chapters: {seen[made]!r} and {ch['key']!r}"
+            )
+        seen[made] = ch["key"]
+
+    return chapters
+
+
 def build() -> list[dict]:
     C: list[dict] = []
 
     # ============================================================ PREFACE ===
     C.append(_chapter(
-        "ch0", P0, "Preface", "How to use this guide",
+        "intro", P0, "How to use this guide",
         "Type the files. Run the commands. Commit at the end of every chapter.",
         [
             prose(
@@ -107,7 +161,7 @@ def build() -> list[dict]:
 
     # =========================================================== PART ONE ===
     C.append(_chapter(
-        "ch1", P1, "Chapter one", "Create the project",
+        "setup", P1, "Create the project",
         "A folder, a virtual environment, and five libraries &mdash; with a reason for each.",
         [
             prose(
@@ -127,10 +181,10 @@ def build() -> list[dict]:
             prose("Know what each one is for before installing it blindly:"),
             '<div class="table-scroll"><table>'
             '<thead><tr><th>Library</th><th>Why this project needs it</th></tr></thead><tbody>'
-            '<tr><td><code>httpx</code></td><td>Makes HTTP requests. Used once, in chapter 4, to download the documentation.</td></tr>'
+            '<tr><td><code>httpx</code></td><td>Makes HTTP requests. Used once, in @fetch@, to download the documentation.</td></tr>'
             '<tr><td><code>fastembed</code></td><td>Turns text into vectors locally via ONNX Runtime. No GPU, no API key, no per-query cost.</td></tr>'
             '<tr><td><code>lancedb</code></td><td>The vector database. Embedded like SQLite &mdash; a folder on disk, no server to run.</td></tr>'
-            '<tr><td><code>anthropic</code></td><td>The official Claude SDK. Not needed until chapter 16.</td></tr>'
+            '<tr><td><code>anthropic</code></td><td>The official Claude SDK. Not needed until @generate@.</td></tr>'
             '<tr><td><code>fastapi</code> + <code>uvicorn</code></td><td>The web layer. FastAPI defines the API; uvicorn is the server that runs it.</td></tr>'
             '</tbody></table></div>',
             heading("Create the folders"),
@@ -156,7 +210,7 @@ def build() -> list[dict]:
 
     done = set(_written)
     C.append(_chapter(
-        "ch2", P1, "Chapter two", "Git, before you write anything",
+        "gitignore", P1, "Git, before you write anything",
         "The .gitignore comes first, not last. Here is the expensive reason why.",
         [
             prose(
@@ -209,25 +263,25 @@ def build() -> list[dict]:
                     "It is not just tidiness &mdash; it makes <code>git log --oneline</code> scannable, and it "
                     "signals to a reviewer that you have worked somewhere with a review process."),
         ],
-        adds=[".gitignore"]))
+        adds=[".gitignore"], file=".gitignore"))
 
     done = set(_written)
     C.append(_chapter(
-        "ch3", P1, "Chapter three", "config.py &mdash; every decision in one place",
-        "The file that makes the evaluation harness in chapter 14 actually useful.",
+        "config", P1, "config.py &mdash; every decision in one place",
+        "The file that makes the evaluation harness in @run_eval@ actually useful.",
         [
             prose(
                 "Start with settings, before any logic. Every tunable number in the project lives here rather "
                 "than scattered as literals across eight files.",
-                "This is not tidiness for its own sake. In chapter 14 you build a harness that scores retrieval "
+                "This is not tidiness for its own sake. In @run_eval@ you build a harness that scores retrieval "
                 "quality, and it is only useful if changing one number and re-running takes five seconds. That "
                 "requires the numbers to be in one findable place."),
             tree_for("app/config.py", done),
             code_walkthrough("app/config.py", wt.CONFIG),
             callout("note", "The three groups that matter",
-                    "<strong>Chunking</strong> controls how documents are cut up (chapters 5&ndash;6). "
-                    "<strong>Embedding</strong> controls how text becomes numbers (chapter 7). "
-                    "<strong>Retrieval</strong> controls how results are ranked (chapters 9&ndash;12). Every "
+                    "<strong>Chunking</strong> controls how documents are cut up (@chunk@). "
+                    "<strong>Embedding</strong> controls how text becomes numbers (@embed@). "
+                    "<strong>Retrieval</strong> controls how results are ranked (@retrieve@). Every "
                     "constant carries a comment explaining not just what it does, but why it holds that value."),
             callout("gotcha", "Read the EMBED_MAX_WORDS comment twice",
                     "It documents a failure that is completely invisible at runtime: the embedding model has a "
@@ -237,12 +291,12 @@ def build() -> list[dict]:
                     "respect your embedding model's context window."),
             commit("feat: project configuration"),
         ],
-        adds=["app/config.py"]))
+        adds=["app/config.py"], file="app/config.py"))
 
     # =========================================================== PART TWO ===
     done = set(_written)
     C.append(_chapter(
-        "ch4", P2, "Chapter four", "fetch_docs.py &mdash; get the documents",
+        "fetch", P2, "fetch_docs.py &mdash; get the documents",
         "Download the corpus with a script, and never commit it.",
         [
             prose(
@@ -251,7 +305,7 @@ def build() -> list[dict]:
                 "retrieval you need to know whether an answer is actually right.",
                 "<strong>Do not commit the documents into your repo.</strong> They are someone else's content "
                 "under their own licence, and a repository carrying 18&nbsp;MB of vendored markdown is "
-                "unpleasant to review. That is what chapter 2's <code>.gitignore</code> was for."),
+                "unpleasant to review. That is what @gitignore@'s <code>.gitignore</code> was for."),
             tree_for("app/fetch_docs.py", done),
             code_walkthrough("app/fetch_docs.py", wt.FETCH),
             callout("note", "Python you just used",
@@ -275,7 +329,7 @@ def build() -> list[dict]:
                      "git status --short\n\n"
                      "?? app/fetch_docs.py\n\n"
                      "# data/ does NOT appear, even though you just wrote 155 files into it.\n"
-                     "# That is chapter 2 paying off."),
+                     "# That is @gitignore@ paying off."),
             callout("gotcha", "If you get 0 files",
                     "The FastAPI repo's default branch or docs path has moved. Open <code>DOCS_TARBALL_URL</code> "
                     "in a browser, look at the archive layout, and fix <code>DOCS_SUBPATH</code> in "
@@ -283,11 +337,11 @@ def build() -> list[dict]:
                     "someone else's repository layout."),
             commit("feat: download the documentation corpus"),
         ],
-        adds=["app/fetch_docs.py"]))
+        adds=["app/fetch_docs.py"], file="app/fetch_docs.py"))
 
     done = set(_written)
     C.append(_chapter(
-        "ch5", P2, "Chapter five", "chunk.py &mdash; three decisions you must defend",
+        "chunk", P2, "chunk.py &mdash; three decisions you must defend",
         "Retrieval can only return chunks you created. This is the highest-leverage file in the project.",
         [
             prose(
@@ -328,10 +382,10 @@ def build() -> list[dict]:
                     "markup that means something different inside a code fence."),
             commit("feat: markdown-aware chunker"),
         ],
-        adds=["app/chunk.py"]))
+        adds=["app/chunk.py"], file="app/chunk.py"))
 
     C.append(_chapter(
-        "ch6", P2, "Chapter six", "Measure the chunker before you trust it",
+        "measure_chunker", P2, "Measure the chunker before you trust it",
         "The step most tutorials skip, and the one that changed this file's design.",
         [
             prose(
@@ -373,7 +427,7 @@ def build() -> list[dict]:
                     "Change <code>CHUNK_TARGET_WORDS</code> in <code>config.py</code> to 80, re-run the command "
                     "above, and watch the median collapse. Then set it to 600 and watch the chunk count fall. "
                     "Put it back to 220 when you are done.",
-                    "You have just done your first parameter sweep. In chapter 14 you will be able to score "
+                    "You have just done your first parameter sweep. In @run_eval@ you will be able to score "
                     "whether such a change actually helped, rather than only observing that it changed "
                     "something."),
             commit("chore: verify chunk size distribution"),
@@ -381,7 +435,7 @@ def build() -> list[dict]:
 
     done = set(_written)
     C.append(_chapter(
-        "ch7", P2, "Chapter seven", "embed.py &mdash; text becomes coordinates",
+        "embed", P2, "embed.py &mdash; text becomes coordinates",
         "Two functions, one silent trap, and the reason this file is isolated from everything else.",
         [
             prose(
@@ -424,14 +478,14 @@ def build() -> list[dict]:
                     "bge models are trained asymmetrically: passages are embedded bare, queries get an "
                     "instruction prefix. Skip it and everything still &ldquo;works&rdquo; &mdash; you get vectors, "
                     "nothing errors &mdash; you just quietly lose retrieval accuracy. Silent quality bugs like "
-                    "this are exactly why chapter 14 exists."),
+                    "this are exactly why @run_eval@ exists."),
             commit("feat: local embeddings via fastembed"),
         ],
-        adds=["app/embed.py"]))
+        adds=["app/embed.py"], file="app/embed.py"))
 
     done = set(_written)
     C.append(_chapter(
-        "ch8", P2, "Chapter eight", "index.py &mdash; build the vector store",
+        "index", P2, "index.py &mdash; build the vector store",
         "The slow, offline half. Run it once and forget it until the documents change.",
         [
             prose(
@@ -461,96 +515,61 @@ def build() -> list[dict]:
                     "progress counter is there so you can tell the difference."),
             commit("feat: build the LanceDB vector index"),
         ],
-        adds=["app/index.py"]))
+        adds=["app/index.py"], file="app/index.py"))
 
     # ========================================================= PART THREE ===
+    done = set(_written)
     C.append(_chapter(
-        "ch9", P3, "Chapter nine", "Vector search &mdash; nearest neighbours",
-        "The first of three retrievers. Build them one at a time so you can tell them apart.",
+        "retrieve", P3, "retrieve.py &mdash; three ways to search",
+        "One file, three retrievers, and the fusion that only survived because it was measured.",
         [
             prose(
-                "<code>retrieve.py</code> ends up holding three ways to search. We build it across four chapters "
-                "rather than dropping 227 lines on you at once, because the interesting part is <em>why there "
-                "are three</em>.",
-                "Start with the store: load the table once, hold it in memory, and find nearest neighbours by "
-                "cosine similarity."),
-            code_symbol("app/retrieve.py", "search_vector", "the vector retriever"),
-            callout("note", "Why flip the distance into a score",
-                    "LanceDB returns cosine <em>distance</em>, where smaller means closer. Everywhere else in "
-                    "this codebase bigger means better. Converting once, here at the boundary, means no other "
-                    "function has to remember which convention it is in &mdash; and mixed conventions are a "
-                    "classic source of silently inverted rankings."),
-            callout("note", "Why metric(\"cosine\") is explicit",
-                    "LanceDB's default is L2 (straight-line) distance. For normalised embeddings cosine and L2 "
-                    "rank identically, so leaving the default would appear to work &mdash; right up until you "
-                    "swap in a model that does not normalise, and your results quietly degrade. State the metric "
-                    "you mean."),
-        ]))
+                "This is the longest file in part three and it holds three ways to search. The nine pieces "
+                "below build it in order; the reasoning for each is attached to the piece it belongs to.",
+                "Before you start typing, the argument for why there are three at all:"),
 
-    C.append(_chapter(
-        "ch10", P3, "Chapter ten", "BM25 &mdash; the keyword retriever",
-        "Twenty-five year old information retrieval, and it still earns its place.",
-        [
+            heading("Retriever 1 &mdash; vector search"),
             prose(
-                "Vector search is blurry on rare literal tokens. Ask about <code>response_model</code> and the "
-                "embedding smears it toward every neighbouring concept. BM25 is the opposite: exact on "
-                "identifiers, helpless when the user's words do not appear in the text at all.",
-                "BM25 scores a document by how often the query's terms appear in it, weighted by how rare each "
-                "term is across the whole corpus, and damped so a long document cannot win just by being long."),
-            code_symbol("app/retrieve.py", "search_keyword", "the keyword retriever"),
-            heading("The tokenizer matters more than the formula"),
-            code_symbol("app/retrieve.py", "tokenize", "how text becomes terms"),
-            callout("note", "Why snake_case is split",
-                    "<code>response_model</code> becomes <code>[\"response_model\", \"response\", \"model\"]</code>, so "
-                    "a question phrased either way matches the same passage. Without this, BM25 only fires on an "
-                    "exact identifier match and contributes almost nothing to ordinary questions."),
-            callout("note", "Why plain Python is fine here",
-                    "Scoring 767 chunks in a Python loop is instantaneous. At a million chunks it would not be, "
-                    "and you would push keyword search into the database &mdash; LanceDB has a full-text index for "
-                    "exactly this. Knowing <em>when</em> the simple thing stops working is more useful than never "
-                    "writing it."),
-        ]))
+                "Embed the question, ask the database for the closest vectors. It generalises across wording: "
+                "&ldquo;can I send this back?&rdquo; finds a passage titled &ldquo;Returns &amp; refunds&rdquo; "
+                "despite sharing no words with it.",
+                "Its weakness is specific and predictable: it is <strong>blurry on rare literal tokens</strong>. "
+                "Ask about <code>response_model</code> and the embedding smears it toward every neighbouring "
+                "concept."),
 
-    C.append(_chapter(
-        "ch11", P3, "Chapter eleven", "Fusing the two with RRF",
-        "How to combine two rankings whose scores are not comparable.",
-        [
+            heading("Retriever 2 &mdash; BM25 keyword search"),
             prose(
-                "You now have two ranked lists that disagree. Combining them sounds like it should be a "
-                "weighted sum of their scores &mdash; and that is the trap."),
+                "Twenty-five year old information retrieval, and it still earns its place. BM25 scores a "
+                "document by how often the query's terms appear in it, weighted by how rare each term is "
+                "across the corpus, and damped so a long document cannot win merely by being long.",
+                "It is the exact opposite of vector search: precise on identifiers, and helpless when the "
+                "user's words do not appear in the text at all."),
+
+            heading("Retriever 3 &mdash; fusing them"),
+            prose(
+                "Two ranked lists that disagree. Combining them sounds like it should be a weighted sum of "
+                "their scores &mdash; and that is the trap."),
             figure(dia.rrf(),
                    "Cosine similarity runs 0&ndash;1; BM25 is unbounded and depends on your corpus. "
                    "<b>Reciprocal Rank Fusion throws the scores away and uses only the positions</b>, which makes "
                    "the two systems comparable by construction. This is a very common interview question.",
                    "Two ranked lists of four documents each, fused into a single ranking by summing "
                    "reciprocal-rank votes, with the vector list weighted three times the keyword list."),
-            code_symbol("app/retrieve.py", "search_hybrid", "the fusion"),
-            callout("gotcha", "The weights are a result, not a guess",
-                    "With textbook <em>equal</em> weights this scored worse than vector search alone. Chapter 15 "
-                    "shows the measurement and the single question that flipped. Leave the 3:1 as it is until "
-                    "you have run the evaluation yourself and can explain it."),
             callout("note", "Why 60?",
                     "The constant in <code>1/(60 + rank)</code> flattens the curve so the top result does not "
                     "dominate completely. 60 is the value from the original 2009 paper and has been the default "
                     "ever since &mdash; it works across a wide range of corpora, which is exactly what you want "
                     "from a constant you are not going to tune."),
-        ]))
+            callout("gotcha", "The 3:1 weighting is a result, not a guess",
+                    "With textbook <em>equal</em> weights this scored worse than vector search alone. "
+                    "@measurement@ shows the measurement and the single question that flipped. Type the 3:1 as "
+                    "written and leave it until you have run the evaluation yourself."),
 
-    done = set(_written)
-    C.append(_chapter(
-        "ch12", P3, "Chapter twelve", "retrieve.py &mdash; the finished file",
-        "The three retrievers, assembled, with the plumbing that holds them together.",
-        [
-            prose(
-                "Here is everything from the last three chapters in one file, plus the <code>Store</code> class "
-                "that loads the table and precomputes BM25 statistics once per process."),
+            heading("Now write the file"),
             tree_for("app/retrieve.py", done),
             code_walkthrough("app/retrieve.py", wt.RETRIEVE),
-            callout("note", "Why get_store() is cached",
-                    "Building the BM25 statistics means tokenizing all 767 chunks. Doing that per request would "
-                    "add a needless delay to every question. <code>@lru_cache</code> makes it happen once per "
-                    "process, on the first call."),
-            heading("Try all three by hand"),
+
+            heading("Check it runs"),
             terminal("PowerShell",
                      "python -m evaluation.run_eval --strategy vector --set main\n\n"
                      "main: 22 questions at k=4\n"
@@ -558,15 +577,15 @@ def build() -> list[dict]:
                      "------------------------------------------\n"
                      "vector      100.0%    0.943     22/22"),
             prose(
-                "Three retrievers, and no way yet to say which is <em>right</em> in general. That is the next "
-                "part of the guide."),
+                "Three retrievers, and no way yet to say which is <em>right</em> in general. That is what the "
+                "next three chapters are for."),
             commit("feat: vector, BM25 and hybrid retrieval"),
         ],
-        adds=["app/retrieve.py"]))
+        adds=["app/retrieve.py"], file="app/retrieve.py"))
 
     done = set(_written)
     C.append(_chapter(
-        "ch13", P3, "Chapter thirteen", "questions.json &mdash; write the test set",
+        "questions", P3, "questions.json &mdash; write the test set",
         "Labelled by reading the docs &mdash; not by running your own retriever.",
         [
             prose(
@@ -587,19 +606,40 @@ def build() -> list[dict]:
                     "A question with two correct sources is not a weaker test, it is an honest one. Forcing a "
                     "single right answer where the documentation genuinely covers a topic twice would just be "
                     "scoring your own labelling, not the retriever."),
-            heading("The second question set"),
-            prose(
-                "One more file, for a reason that becomes clear in chapter 15: the main set is almost entirely "
-                "paraphrased questions, which is vector search's home turf. It structurally cannot show whether "
-                "keyword search contributes anything."),
-            code_file("evaluation/questions_identifiers.json", "the whole file"),
-            commit("feat: labelled retrieval evaluation sets"),
+            commit("feat: labelled retrieval evaluation set"),
         ],
-        adds=["evaluation/questions.json", "evaluation/questions_identifiers.json"]))
+        adds=["evaluation/questions.json"], file="evaluation/questions.json"))
 
     done = set(_written)
     C.append(_chapter(
-        "ch14", P3, "Chapter fourteen", "run_eval.py &mdash; the scoring harness",
+        "questions_ids", P3, "questions_identifiers.json &mdash; the second set",
+        "Eight queries written to test one specific hypothesis.",
+        [
+            prose(
+                "A second question file, and it exists for a reason worth understanding before you type it.",
+                "The set you just wrote is almost entirely <em>paraphrased</em> questions &mdash; which is vector "
+                "search's home turf. That makes it structurally incapable of answering a question you will need "
+                "answered in @measurement@: <strong>does keyword search contribute anything at all?</strong>",
+                "So this set is built the opposite way: eight queries hung on rare literal identifiers "
+                "&mdash; <code>HTTPException</code>, <code>jsonable_encoder</code>, <code>APIRouter</code> &mdash; "
+                "the case where BM25 should earn its place."),
+            tree_for("evaluation/questions_identifiers.json", done),
+            code_file("evaluation/questions_identifiers.json", "the whole file"),
+            callout("note", "Naming the gap in your own test set",
+                    "This is the habit worth taking away, more than the file itself. When you find that your "
+                    "evaluation cannot distinguish two options, the useful move is not to add more questions of "
+                    "the kind you already have &mdash; it is to work out which <em>class</em> of query you are "
+                    "not covering, and write that.",
+                    "&ldquo;My eval set under-samples X, so I built a second one for X&rdquo; is a strong thing "
+                    "to be able to say."),
+            commit("feat: identifier-focused evaluation set"),
+        ],
+        adds=["evaluation/questions_identifiers.json"],
+        file="evaluation/questions_identifiers.json"))
+
+    done = set(_written)
+    C.append(_chapter(
+        "run_eval", P3, "run_eval.py &mdash; the scoring harness",
         "Two metrics, and why you need both.",
         [
             prose(
@@ -630,10 +670,10 @@ def build() -> list[dict]:
                      "hybrid      100.0%    0.875      8/8"),
             commit("feat: retrieval evaluation harness"),
         ],
-        adds=["evaluation/run_eval.py"]))
+        adds=["evaluation/run_eval.py"], file="evaluation/run_eval.py"))
 
     C.append(_chapter(
-        "ch15", P3, "Chapter fifteen", "The measurement that changed the design",
+        "measurement", P3, "The measurement that changed the design",
         "My favourite idea lost. This is the most valuable chapter in the guide.",
         [
             prose(
@@ -688,7 +728,7 @@ def build() -> list[dict]:
     # ========================================================== PART FOUR ===
     done = set(_written)
     C.append(_chapter(
-        "ch16", P4, "Chapter sixteen", "generate.py &mdash; assemble the prompt, call Claude",
+        "generate", P4, "generate.py &mdash; assemble the prompt, call Claude",
         "Everything in the previous fifteen chapters exists to make one string good.",
         [
             prose(
@@ -706,7 +746,7 @@ def build() -> list[dict]:
             callout("gotcha", "Never put the key in a file you commit",
                     "Not in <code>config.py</code>, not in a notebook, not &ldquo;temporarily&rdquo;. Environment "
                     "variable or <code>.env</code> only &mdash; and <code>.env</code> is already ignored by the "
-                    "<code>.gitignore</code> you wrote in chapter 2."),
+                    "<code>.gitignore</code> you wrote in @gitignore@."),
             tree_for("app/generate.py", done),
             code_walkthrough("app/generate.py", wt.GENERATE),
             callout("note", "Why effort is set to low",
@@ -739,11 +779,11 @@ def build() -> list[dict]:
                     "assistant and a developer-docs assistant should choose differently."),
             commit("feat: grounded answer generation with Claude"),
         ],
-        adds=["app/generate.py"]))
+        adds=["app/generate.py"], file="app/generate.py"))
 
     done = set(_written)
     C.append(_chapter(
-        "ch17", P4, "Chapter seventeen", "api.py &mdash; three endpoints, one of them free",
+        "api", P4, "api.py &mdash; three endpoints, one of them free",
         "The debugging affordance that costs nothing and saves hours.",
         [
             prose(
@@ -789,11 +829,11 @@ def build() -> list[dict]:
                     "Most people spend hours rewriting prompts to fix what is actually a retrieval bug."),
             commit("feat: FastAPI service with a key-free search endpoint"),
         ],
-        adds=["app/api.py"]))
+        adds=["app/api.py"], file="app/api.py"))
 
     done = set(_written)
     C.append(_chapter(
-        "ch18", P4, "Chapter eighteen", "index.html &mdash; something to screenshot",
+        "indexhtml", P4, "index.html &mdash; something to screenshot",
         "One self-contained page, because a project people can see beats one they must imagine.",
         [
             prose(
@@ -814,20 +854,20 @@ def build() -> list[dict]:
             terminal("PowerShell",
                      "uvicorn app.api:app --reload\n"
                      "# open http://127.0.0.1:8000 - ask something, then screenshot it\n"
-                     "# for the README in chapter 20."),
+                     "# for the README in @readme@."),
             commit("feat: minimal browser UI"),
         ],
-        adds=["app/static/index.html"]))
+        adds=["app/static/index.html"], file="app/static/index.html"))
 
     # ========================================================== PART FIVE ===
     done = set(_written)
     C.append(_chapter(
-        "ch19", P5, "Chapter nineteen", "The two files that make it installable",
-        "requirements.txt and .env.example &mdash; small files, large consequences.",
+        "requirements", P5, "requirements.txt &mdash; make it installable",
+        "The file that turns a folder on your laptop into something someone else can run.",
         [
             prose(
-                "You already wrote <code>.gitignore</code> in chapter 2. Two short files remain between a folder "
-                "on your laptop and something another engineer can clone and run."),
+                "You already wrote <code>.gitignore</code> in @gitignore@. This is the second of the three small "
+                "files that stand between your project and a working clone."),
             tree_for("requirements.txt", done),
             code_file("requirements.txt"),
             callout("note", "Why the versions are ranges, not pins",
@@ -835,27 +875,51 @@ def build() -> list[dict]:
                     "through while blocking the 1.0 release that might break the API. Pinning exactly "
                     "(<code>==0.115.2</code>) is right for a deployed service where reproducibility beats "
                     "freshness; ranges are right for a portfolio project someone will clone in six months."),
-            tree_for(".env.example", done),
-            code_file(".env.example"),
-            callout("note", "Why commit an example but not the real thing",
-                    "<code>.env.example</code> documents which variables exist without revealing any values. "
-                    "Someone cloning your repo copies it to <code>.env</code>, fills in their own key, and "
-                    "<code>.gitignore</code> keeps that copy out of git. It is the standard pattern and reviewers "
-                    "look for it."),
+            callout("gotcha", "Do not generate this with pip freeze",
+                    "<code>pip freeze</code> dumps every package in your environment, including the ones that are "
+                    "only there because something else needed them, pinned to the exact versions on your machine. "
+                    "A reviewer cannot tell what you actually depend on, and the pins break on any other Python.",
+                    "Nine lines you chose beats sixty lines a tool guessed."),
             heading("Prove the quickstart actually works"),
+            prose(
+                "The only honest test of your own install instructions is to destroy the state and follow them "
+                "literally:"),
             terminal("PowerShell",
-                     "# The only honest test of your own instructions:\n"
                      "Remove-Item -Recurse -Force data\n"
                      "python -m app.fetch_docs\n"
                      "python -m app.index\n"
                      "python -m evaluation.run_eval"),
-            commit("chore: requirements and env example"),
+            commit("chore: requirements"),
         ],
-        adds=["requirements.txt", ".env.example"]))
+        adds=["requirements.txt"], file="requirements.txt"))
 
     done = set(_written)
     C.append(_chapter(
-        "ch20", P5, "Chapter twenty", "README.md &mdash; the file that gets read",
+        "envexample", P5, ".env.example &mdash; document the secret without leaking it",
+        "Nine lines, and the reason a reviewer can tell you have done this before.",
+        [
+            prose(
+                "The last of the three small files. It documents <em>which</em> environment variables exist "
+                "without revealing a single value."),
+            tree_for(".env.example", done),
+            code_file(".env.example"),
+            callout("note", "Why commit an example but not the real thing",
+                    "Someone cloning your repo copies this to <code>.env</code>, fills in their own key, and the "
+                    "<code>.gitignore</code> from @gitignore@ keeps that copy out of git.",
+                    "Without it, a new user has to read your source to discover that "
+                    "<code>ANTHROPIC_API_KEY</code> is what they are missing. It is the standard pattern and "
+                    "reviewers look for it."),
+            callout("gotcha", "Check the real one never got committed",
+                    "<code>git ls-files | Select-String \"^\\.env$\"</code> should print nothing. Run it now, while "
+                    "the repository is still private and a mistake costs you thirty seconds instead of a rotated "
+                    "key."),
+            commit("chore: env example"),
+        ],
+        adds=[".env.example"], file=".env.example"))
+
+    done = set(_written)
+    C.append(_chapter(
+        "readme", P5, "README.md &mdash; the file that gets read",
         "Most people who open your repo read one file. Budget your effort accordingly.",
         [
             prose(
@@ -864,7 +928,7 @@ def build() -> list[dict]:
             '<div class="col"><ol class="steps">'
             '<li><strong>Say what it is in one sentence</strong>, before any setup instructions.</li>'
             '<li><strong>Show the evaluation table near the top.</strong> It is your differentiator &mdash; do not bury it under installation steps.</li>'
-            '<li><strong>Give a quickstart that works from a clean clone</strong> &mdash; the one you just tested in chapter 19.</li>'
+            '<li><strong>Give a quickstart that works from a clean clone</strong> &mdash; the one you just tested in @requirements@.</li>'
             '<li><strong>Include a &ldquo;What I&rsquo;d do next&rdquo; section.</strong> Naming your own project&rsquo;s limits reads as senior, not weak. Reviewers who spot a gap you already listed think &ldquo;they know&rdquo;; reviewers who spot one you missed think something else.</li>'
             '</ol></div>',
             tree_for("README.md", done),
@@ -873,15 +937,15 @@ def build() -> list[dict]:
                     "made things worse at first, and explaining what I did about it. Anyone can write &ldquo;uses "
                     "hybrid retrieval&rdquo;. Almost nobody can show the measurement that nearly killed it."),
             callout("note", "Embed the screenshot",
-                    "Put the image from chapter 18 in <code>docs/screenshot.png</code> and reference it near the "
+                    "Put the image from @indexhtml@ in <code>docs/screenshot.png</code> and reference it near the "
                     "top with <code>![alt text](docs/screenshot.png)</code>. A reviewer decides whether to keep "
                     "reading in about four seconds, and a picture of a working thing buys you those seconds."),
             commit("docs: README with evaluation results"),
         ],
-        adds=["README.md"]))
+        adds=["README.md"], file="README.md"))
 
     C.append(_chapter(
-        "ch21", P5, "Chapter twenty-one", "Push it to GitHub",
+        "push", P5, "Push it to GitHub",
         "Remotes, branches, and the check you run before every push.",
         [
             heading("The check, one more time"),
@@ -927,7 +991,7 @@ def build() -> list[dict]:
         ]))
 
     C.append(_chapter(
-        "ch22", P5, "Chapter twenty-two", "Write about it",
+        "write", P5, "Write about it",
         "Lead with the finding, not the stack.",
         [
             prose(
@@ -947,7 +1011,7 @@ def build() -> list[dict]:
             callout("note", "Three practical details",
                     "Put the repo link in the <strong>first comment</strong>, not the post body &mdash; LinkedIn "
                     "suppresses reach on posts with external links. <strong>Attach the screenshot</strong> from "
-                    "chapter 18. And do not claim it is production-ready: &ldquo;a small system I built to "
+                    "@indexhtml@. And do not claim it is production-ready: &ldquo;a small system I built to "
                     "understand retrieval properly&rdquo; is both true and more credible."),
             callout("gotcha", "Expect this comment",
                     "Someone will ask &ldquo;why not just use LangChain?&rdquo; A good answer: the whole point was to "
@@ -956,7 +1020,7 @@ def build() -> list[dict]:
         ]))
 
     C.append(_chapter(
-        "ch23", P5, "Chapter twenty-three", "The viva",
+        "viva", P5, "The viva",
         "Nine questions you will actually be asked, and what a good answer sounds like.",
         [
             prose(
@@ -1022,4 +1086,4 @@ def build() -> list[dict]:
             ]),
         ]))
 
-    return C
+    return _finalise(C)

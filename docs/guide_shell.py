@@ -114,7 +114,7 @@ CSS = r"""
   @media (min-width: 960px) { .toc-toggle { display: none; } }
 
   .toc { display: grid; gap: 1.3rem; }
-  @media (min-width: 960px) { .toc { position: sticky; top: 1.25rem; max-height: calc(100vh - 2.5rem); overflow-y: auto; } }
+  @media (min-width: 960px) { .toc { position: sticky; top: 1.25rem; max-height: calc(100vh - 2.5rem); overflow-y: auto; overflow-x: hidden; } }
   @media (max-width: 959px) { .toc { margin-top: .75rem; } }
   .toc[hidden] { display: none; }
 
@@ -136,6 +136,24 @@ CSS = r"""
   .toc-link.is-done .tick { background: var(--green); border-color: var(--green); color: var(--paper); }
   .toc-link.is-done > span:last-child { color: var(--ink-soft); text-decoration: line-through; text-decoration-color: var(--rule); }
   .toc-link[aria-current="true"].is-done > span:last-child { color: var(--ink); }
+
+  .makes {
+    display: flex; align-items: center; gap: .55rem; margin-top: .35rem;
+  }
+  .makes-label {
+    font-family: var(--mono); font-size: .62rem; letter-spacing: .16em;
+    text-transform: uppercase; color: var(--ink-soft);
+  }
+  .makes code {
+    background: var(--rose-wash); color: var(--rose); font-weight: 600;
+    padding: .16em .5em; border-radius: 6px; font-size: .8rem;
+  }
+  .toc-link.is-file > span:last-child {
+    font-family: var(--mono); font-size: .78rem; letter-spacing: -.01em;
+  }
+  /* Long paths and part names must wrap, not run off the sidebar edge. */
+  .toc-link > span:last-child { overflow-wrap: anywhere; min-width: 0; }
+  .toc-part > .label { overflow-wrap: anywhere; }
 
   /* chapters */
   .chapter[hidden] { display: none; }
@@ -383,7 +401,13 @@ JS = r"""
       tick.setAttribute("aria-hidden", "true");
       tick.textContent = "✓";
       var title = document.createElement("span");
-      title.innerHTML = ch.getAttribute("data-short");
+      var madeFile = ch.getAttribute("data-file");
+      if (madeFile) {
+        btn.classList.add("is-file");
+        title.textContent = madeFile;
+      } else {
+        title.innerHTML = ch.getAttribute("data-short");
+      }
       btn.appendChild(tick);
       btn.appendChild(title);
       btn.addEventListener("click", function () {
@@ -506,13 +530,19 @@ def render(chapters: list[dict]) -> str:
     articles = []
     for ch in chapters:
         short = ch["title"].split(" &mdash; ")[0]
+        made = ch.get("file") or ""
+        badge = (
+            f'<p class="makes"><span class="makes-label">creates</span>'
+            f'<code>{made}</code></p>' if made else ""
+        )
         articles.append(
             f'<article class="chapter" id="{ch["id"]}" data-part="{ch["part"]}" '
-            f'data-short="{short}" hidden>'
+            f'data-short="{short}" data-file="{made}" hidden>'
             '<div class="chapter-head">'
             f'<p class="eyebrow">{ch["eyebrow"]}</p>'
             f'<h2 tabindex="-1">{ch["title"]}</h2>'
             f'<p class="deck">{ch["deck"]}</p>'
+            f"{badge}"
             "</div>"
             f'{ch["body"]}'
             "</article>"
