@@ -8,11 +8,13 @@ from build_guide import (
     callout,
     code_file,
     code_symbol,
+    code_walkthrough,
     heading,
     prose,
     terminal,
     tree_for,
 )
+import guide_walkthroughs as wt
 import guide_diagrams as dia
 from guide_diagrams import figure
 
@@ -221,7 +223,7 @@ def build() -> list[dict]:
                 "quality, and it is only useful if changing one number and re-running takes five seconds. That "
                 "requires the numbers to be in one findable place."),
             tree_for("app/config.py", done),
-            code_file("app/config.py", "the whole file"),
+            code_walkthrough("app/config.py", wt.CONFIG),
             callout("note", "The three groups that matter",
                     "<strong>Chunking</strong> controls how documents are cut up (chapters 5&ndash;6). "
                     "<strong>Embedding</strong> controls how text becomes numbers (chapter 7). "
@@ -251,7 +253,7 @@ def build() -> list[dict]:
                 "under their own licence, and a repository carrying 18&nbsp;MB of vendored markdown is "
                 "unpleasant to review. That is what chapter 2's <code>.gitignore</code> was for."),
             tree_for("app/fetch_docs.py", done),
-            code_file("app/fetch_docs.py", "the whole file"),
+            code_walkthrough("app/fetch_docs.py", wt.FETCH),
             callout("note", "Python you just used",
                     "<code>with ... as x:</code> is a <strong>context manager</strong>. It guarantees cleanup &mdash; "
                     "the connection closes, the archive closes &mdash; even if an error is thrown inside the "
@@ -316,7 +318,7 @@ def build() -> list[dict]:
                 "Carrying the last 40 words of each chunk into the next costs a little storage and removes the "
                 "failure mode entirely."),
             tree_for("app/chunk.py", done),
-            code_file("app/chunk.py", "the whole file &mdash; the longest in the project"),
+            code_walkthrough("app/chunk.py", wt.CHUNK),
             callout("gotcha", "The bug hiding in _sections()",
                     "My first version treated any line starting with <code>#</code> as a heading. In a "
                     "documentation corpus full of <strong>Python code blocks</strong>, every "
@@ -403,7 +405,7 @@ def build() -> list[dict]:
                     "embedding model, Anthropic points at Voyage AI, and swapping is roughly ten lines in this "
                     "one file."),
             tree_for("app/embed.py", done),
-            code_file("app/embed.py", "the whole file"),
+            code_walkthrough("app/embed.py", wt.EMBED),
             callout("note", "Python you just used",
                     "<code>@lru_cache(maxsize=1)</code> is a <strong>decorator</strong> &mdash; a function wrapping "
                     "another function to change its behaviour. This one caches the result, so the model loads "
@@ -437,7 +439,7 @@ def build() -> list[dict]:
                 "project that matters more than it sounds, because anyone who clones your repo can run it in "
                 "two minutes."),
             tree_for("app/index.py", done),
-            code_file("app/index.py", "the whole file"),
+            code_walkthrough("app/index.py", wt.INDEX),
             callout("note", "Why the schema is declared by hand",
                     "You could let LanceDB infer a schema from the first row. Don't. Inference guesses the "
                     "vector width from whatever it sees first, which turns a future embedding-model swap into a "
@@ -543,7 +545,7 @@ def build() -> list[dict]:
                 "Here is everything from the last three chapters in one file, plus the <code>Store</code> class "
                 "that loads the table and precomputes BM25 statistics once per process."),
             tree_for("app/retrieve.py", done),
-            code_file("app/retrieve.py", "the whole file"),
+            code_walkthrough("app/retrieve.py", wt.RETRIEVE),
             callout("note", "Why get_store() is cached",
                     "Building the BM25 statistics means tokenizing all 767 chunks. Doing that per request would "
                     "add a needless delay to every question. <code>@lru_cache</code> makes it happen once per "
@@ -604,7 +606,7 @@ def build() -> list[dict]:
                 "Almost every RAG demo on GitHub stops at &ldquo;it returns plausible answers.&rdquo; Yours is "
                 "about to have a number."),
             tree_for("evaluation/run_eval.py", done),
-            code_file("evaluation/run_eval.py", "the whole file"),
+            code_walkthrough("evaluation/run_eval.py", wt.RUN_EVAL),
             callout("note", "Hit@k and MRR@k",
                     "<strong>Hit@k</strong> asks whether a correct page appeared in the top k chunks at all &mdash; "
                     "the blunt question of whether the model <em>could</em> have answered. <strong>MRR@k</strong> "
@@ -706,7 +708,7 @@ def build() -> list[dict]:
                     "variable or <code>.env</code> only &mdash; and <code>.env</code> is already ignored by the "
                     "<code>.gitignore</code> you wrote in chapter 2."),
             tree_for("app/generate.py", done),
-            code_file("app/generate.py", "the whole file"),
+            code_walkthrough("app/generate.py", wt.GENERATE),
             callout("note", "Why effort is set to low",
                     "Effort controls how much the model thinks before answering. Reading four short passages "
                     "and quoting the relevant one is not a hard reasoning problem &mdash; the answer is sitting in "
@@ -755,7 +757,7 @@ def build() -> list[dict]:
                    "A request flows from the browser into FastAPI, then splits: /search returns retrieved "
                    "passages for free, while /ask additionally calls Claude and costs tokens."),
             tree_for("app/api.py", done),
-            code_file("app/api.py", "the whole file"),
+            code_walkthrough("app/api.py", wt.API),
             callout("note", "Why answer_question is imported inside the function",
                     "Importing it at the top of the file would execute <code>app/generate.py</code> at startup, "
                     "and constructing the Anthropic client without a key raises. Moving the import inside "

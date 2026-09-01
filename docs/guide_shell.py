@@ -174,6 +174,33 @@ CSS = r"""
   .code-block pre .n { color: var(--blue); }
   .code-block pre .soft { color: var(--blue); font-style: italic; }
 
+  /* walkthrough: a file written piece by piece */
+  .walkthrough { display: grid; gap: 2rem; max-width: 82ch; }
+  .part { display: grid; gap: 0; }
+  .part-head {
+    display: flex; align-items: baseline; gap: .85rem; flex-wrap: wrap;
+    margin-bottom: .7rem;
+  }
+  .part-n {
+    font-family: var(--mono); font-size: .66rem; letter-spacing: .14em;
+    text-transform: uppercase; color: #fff; background: var(--rose);
+    padding: .2rem .6rem; border-radius: 99px; white-space: nowrap;
+  }
+  .part-head h4 { font-size: 1.06rem; line-height: 1.3; }
+  .code-block.walk { border-radius: 16px 16px 0 0; border-bottom: 0; max-width: none; }
+  /* Pieces keep the file's real trailing blank lines, so trim the box's
+     own bottom padding rather than trimming the code. */
+  .code-block.walk pre { padding-bottom: .45rem; }
+  .part-why {
+    background: var(--card-2); border: 1px solid var(--rule); border-top: 0;
+    border-radius: 0 0 16px 16px; padding: 1.05rem 1.3rem 1.15rem;
+    display: grid; gap: .55rem; font-size: .95rem; line-height: 1.65;
+    color: var(--ink-soft);
+  }
+  .part-why .label { color: var(--rose); }
+  .part-why strong { color: var(--ink); }
+  .part-why p + p { margin-top: .1rem; }
+
   /* figures */
   .fig {
     margin: 0; max-width: 82ch; background: var(--card);

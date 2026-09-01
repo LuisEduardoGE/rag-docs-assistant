@@ -78,7 +78,19 @@ def highlight_python(source: str) -> str:
 
         last_row, last_col = tok.end
 
-    return "".join(out).rstrip("\n")
+    produced = "".join(out)
+
+    # The loop reconstructs whitespace from the gaps BETWEEN tokens, so any
+    # trailing blank lines -- everything after the final token -- are never
+    # emitted. That does not matter for a whole file, but when a file is shown
+    # in pieces those blank lines separate one piece from the next, and losing
+    # them means the rejoined pieces are a different file from the real one.
+    # Restore them by matching the source's newline count.
+    missing = source.count("\n") - produced.count("\n")
+    if missing > 0:
+        produced += "\n" * missing
+
+    return produced
 
 
 def read(rel: str) -> str:
@@ -115,6 +127,65 @@ def code_file(rel: str, note: str = "") -> str:
         f'<div class="bar-label"><p class="label filename">{esc(rel)}</p>{right}</div>'
         f"<pre>{body}</pre></div>"
     )
+
+
+def code_walkthrough(rel: str, parts: list[tuple[str, str, str]]) -> str:
+    """Present a file as a sequence of pieces to type, each with its reason.
+
+    `parts` is a list of (anchor, title, why). `anchor` is a substring of the
+    first line of that piece; the first part's anchor is ignored because it
+    always starts at line 1. The file is sliced at those anchors, so the
+    pieces are cut out of the real source rather than transcribed -- and
+    concatenating them reproduces the file byte-for-byte, which
+    verify_guide.py checks.
+    """
+    source = read(rel)
+    lines = source.splitlines()
+
+    # Locate each anchor's line number.
+    starts = [0]
+    for anchor, _title, _why in parts[1:]:
+        for i in range(starts[-1] + 1, len(lines)):
+            if anchor in lines[i]:
+                # Back up over any decorators attached to this definition.
+                # Anchoring on "class Unit" would otherwise leave the
+                # "@dataclass" above it stranded at the end of the previous
+                # piece -- so someone typing along would write a decorator
+                # with nothing under it, and hit a syntax error.
+                j = i
+                while j > starts[-1] and lines[j - 1].lstrip().startswith("@"):
+                    j -= 1
+                starts.append(j)
+                break
+        else:
+            raise SystemExit(f"anchor {anchor!r} not found in {rel} after line {starts[-1]}")
+
+    bounds = starts + [len(lines)]
+    total = len(parts)
+    blocks = []
+
+    for n, (_anchor, title, why) in enumerate(parts, start=1):
+        # No rstrip: the blank lines between top-level definitions belong to
+        # the piece that precedes them. Trimming them makes each block look
+        # tidier and makes the joined pieces a DIFFERENT file from the real
+        # one -- which verify_guide.py catches, and which would have had
+        # readers typing a file that never quite matched.
+        segment = "\n".join(lines[bounds[n - 1]:bounds[n]])
+        body = highlight_python(segment) if rel.endswith(".py") else esc(segment)
+        blocks.append(
+            '<div class="part">'
+            f'<div class="part-head"><span class="part-n">Part {n} of {total}</span>'
+            f"<h4>{title}</h4></div>"
+            '<div class="code-block walk" data-part-of="' + esc(rel) + '" '
+            f'data-part-index="{n}">'
+            f'<div class="bar-label"><p class="label filename">{esc(rel)}</p>'
+            f'<p class="label">{"create the file" if n == 1 else "append this"}</p></div>'
+            f"<pre>{body}</pre></div>"
+            f'<div class="part-why"><p class="label">Why</p>{why}</div>'
+            "</div>"
+        )
+
+    return f'<div class="walkthrough">{"".join(blocks)}</div>'
 
 
 def code_symbol(rel: str, name: str, note: str = "") -> str:
