@@ -81,10 +81,19 @@ def _finalise(chapters: list[dict]) -> list[dict]:
         ch["eyebrow"] = "Preface" if i == 0 else f"Chapter {WORDS[i]}"
         numbers[ch["key"]] = i
 
+    # Counts, so no caption can claim a number the guide no longer has.
+    counts = {
+        "@filecount@": str(sum(1 for c in chapters if c.get("file"))),
+        "@chaptercount@": str(len(chapters) - 1),
+    }
+
     for ch in chapters:
         for key, n in numbers.items():
             ch["body"] = ch["body"].replace(f"@{key}@", f"chapter {n}")
             ch["deck"] = ch["deck"].replace(f"@{key}@", f"chapter {n}")
+        for token, value in counts.items():
+            ch["body"] = ch["body"].replace(token, value)
+            ch["deck"] = ch["deck"].replace(token, value)
 
     # A leftover token is a typo in a reference. Fail loudly rather than
     # shipping a literal "@foo@" into the page.
@@ -151,7 +160,10 @@ def build() -> list[dict]:
                    "Two-phase RAG architecture: indexing runs offline to build a vector index; answering "
                    "embeds the question, searches that index, and sends the top chunks to Claude."),
             heading("The shape of the finished project"),
-            tree_for(None, set(), "Twenty-four chapters, roughly one file each."),
+            # The count is filled in by _finalise, so restructuring the guide
+            # can never leave the caption claiming a number of chapters that
+            # no longer exists.
+            tree_for(None, set(), "@filecount@ of these files you write yourself, one per chapter."),
             callout("gotcha", "Before you start &mdash; Windows only",
                     "The FastAPI docs contain emoji. Windows terminals default to the <code>cp1252</code> "
                     "character set, which cannot print them, so any script that prints document text dies with "

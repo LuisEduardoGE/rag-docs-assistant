@@ -49,9 +49,26 @@ def indented(text: str, spaces: int) -> str:
     return "\n".join(pad + line if line.strip() else line for line in text.splitlines())
 
 
+def check_css_vars(guide: str) -> list[str]:
+    """Every var(--x) used in the page must actually be defined in it.
+
+    The diagrams reference design tokens by name. Renaming a token in the
+    stylesheet without renaming it in the diagrams leaves every figure
+    drawing in fallback colours, and nothing errors -- the browser just
+    silently paints black. This catches that.
+    """
+    used = set(re.findall(r"var\((--[a-z0-9-]+)\)", guide))
+    defined = set(re.findall(r"(--[a-z0-9-]+)\s*:", guide))
+    missing = sorted(used - defined)
+    for name in missing:
+        print(f"  FAIL {name} is used but never defined")
+    return missing
+
+
 def main() -> int:
     guide = GUIDE.read_text(encoding="utf-8")
     failures: list[str] = []
+    failures.extend(check_css_vars(guide))
 
     # --- walkthroughs: the joined pieces must rebuild the file --------------
     pieces: dict[str, list[tuple[int, str]]] = collections.defaultdict(list)
@@ -98,6 +115,7 @@ def main() -> int:
           if not failures else "")
     print(f"{whole} whole-file blocks match exactly")
     print(f"{extract} extracted symbols found verbatim in their file")
+    print("every CSS custom property used is defined")
 
     if failures:
         print(f"\n{len(failures)} problem(s) - the guide does not match the code")
