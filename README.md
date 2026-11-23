@@ -1,5 +1,11 @@
 # RAG Docs Assistant
 
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
+![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?style=flat-square&logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=flat-square&logo=fastapi&logoColor=white)
+![LanceDB](https://img.shields.io/badge/LanceDB-vector%20store-555?style=flat-square)
+![Hybrid retrieval](https://img.shields.io/badge/retrieval-vector%20%2B%20BM25%20%2B%20RRF-8A2BE2?style=flat-square)
+
 Ask questions about the [FastAPI](https://fastapi.tiangolo.com/) documentation and get answers grounded in the actual docs, with the source passages attached.
 
 A small, complete Retrieval-Augmented Generation system: markdown-aware chunking, local embeddings, a vector store, hybrid retrieval, a Claude generation step, a FastAPI service, and — the part most RAG demos skip — **a labelled evaluation harness that measures whether retrieval actually works.**
@@ -143,3 +149,7 @@ Being honest about the edges, in rough order of expected payoff:
 - The corpus and index live in `data/` and are gitignored. Both are rebuilt by the two commands in the quickstart.
 - On Windows, `python -m app.index` can hit `UnicodeEncodeError` when printing — the FastAPI docs contain emoji and the default console codepage is cp1252. `set PYTHONIOENCODING=utf-8` fixes it.
 - The FastAPI documentation is © Sebastián Ramírez, MIT licensed. It is downloaded at runtime, never redistributed here.
+
+## License
+
+[MIT](LICENSE)
