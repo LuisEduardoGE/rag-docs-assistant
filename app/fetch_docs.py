@@ -18,7 +18,7 @@ from pathlib import Path
 
 import httpx
 
-from app.config import CORPUS_DIR, DOCS_TARBALL_URL, DOCS_SUBPATH
+from app.config import CORPUS_DIR, DOCS_SUBPATH, DOCS_TARBALL_URL
 
 
 def fetch_docs(dest: Path = CORPUS_DIR) -> int:

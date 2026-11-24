@@ -99,7 +99,7 @@ def ask(request: SearchRequest) -> AskResponse:
         result = answer_question(
             request.question, k=request.k, strategy=request.strategy
         )
-    except Exception as exc:  # noqa: BLE001 - surfaced to the caller below
+    except Exception as exc:  # surfaced to the caller below
         raise HTTPException(
             status_code=502,
             detail=f"Generation failed: {type(exc).__name__}: {exc}",

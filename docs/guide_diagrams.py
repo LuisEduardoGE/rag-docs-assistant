@@ -149,7 +149,7 @@ def chunking() -> str:
         s += f'<line x1="248" y1="{y}" x2="{540 if y == 220 else 500}" y2="{y}" stroke="var(--ink-2)" stroke-width="3" opacity=".28"/>'
     s += '<text class="d-sub" x="248" y="256" fill="var(--ink-2)">chunk 2</text>'
 
-    s += f'<path d="M 580 90 L 604 90 L 604 208 L 580 208" fill="none" stroke="var(--verified)" stroke-width="1.5"/>'
+    s += '<path d="M 580 90 L 604 90 L 604 208 L 580 208" fill="none" stroke="var(--verified)" stroke-width="1.5"/>'
     s += '<text class="d-edge" x="612" y="152" fill="var(--verified)">40 words</text>'
     return ("0 0 700 285", s)
 

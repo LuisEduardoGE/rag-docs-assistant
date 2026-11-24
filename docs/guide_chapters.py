@@ -4,6 +4,8 @@ Prose lives here; code is pulled from the real repository by build_guide.py,
 and diagrams come from guide_diagrams.py.
 """
 
+import guide_diagrams as dia
+import guide_walkthroughs as wt
 from build_guide import (
     callout,
     code_file,
@@ -14,8 +16,6 @@ from build_guide import (
     terminal,
     tree_for,
 )
-import guide_walkthroughs as wt
-import guide_diagrams as dia
 from guide_diagrams import figure
 
 P0 = "Preface"

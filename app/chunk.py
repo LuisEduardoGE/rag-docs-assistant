@@ -24,7 +24,7 @@ Three decisions are made here, and each one is defended in the README:
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from pathlib import Path
 
 from app.config import (

@@ -75,4 +75,4 @@ def embed_query(text: str) -> np.ndarray:
     reason the evaluation harness in evaluation/ exists.
     """
     prefixed = f"{QUERY_PREFIX}{text}"
-    return np.array(list(_model().embed([prefixed]))[0], dtype=np.float32)
+    return np.array(next(iter(_model().embed([prefixed]))), dtype=np.float32)

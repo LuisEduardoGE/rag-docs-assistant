@@ -1,0 +1,6 @@
+# Ruff default rules. docs/ holds the scripts that build the HTML guide.
+src = [".", "docs"]
+
+[lint.per-file-ignores]
+# Guide content: long HTML/prose literals built by implicit string concatenation.
+"docs/guide_*.py" = ["ISC004", "SIM905"]
